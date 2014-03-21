@@ -1,0 +1,6 @@
+[submodule "vicious"]
+	path = vicious
+	url = ./vicious
+[submodule "lain"]
+	path = lain
+	url = ./lain
