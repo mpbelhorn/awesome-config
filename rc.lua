@@ -17,6 +17,25 @@ local naughty   = require("naughty")
 local drop      = require("scratchdrop")
 local lain      = require("lain")
 --local vicious = require("vicious")
+
+-- beautiful init
+beautiful.init(awful.util.getdir("config") .. "/themes/current/theme.lua")
+
+naughty.config.presets.normal = {
+  bg = beautiful.fg_urgent,
+  fg = beautiful.fg_normal,
+  timeout = 10
+}
+naughty.config.presets.low = {
+  bg = beautiful.fg_urgent,
+  fg = beautiful.fg_normal,
+  timeout = 10
+}
+naughty.config.presets.critical = {
+  bg = beautiful.alarm,
+  fg = beautiful.fg_normal,
+  timeout = 10
+}
 -- }}}
 
 -- {{{ Error handling
@@ -33,10 +52,16 @@ do
         in_error = true
 
         naughty.notify({ preset = naughty.config.presets.critical,
-                         title = "Oops, an error happened!",
+                         title = "AWM Critical Error",
                          text = err })
         in_error = false
     end)
+end
+
+--- Pads str to length len with char from right
+str_pad = function(str, len, char)
+  if char == nil then char = ' ' end
+  return string.rep(char, len - #str) .. str
 end
 
 function linkInfo(adapter)
@@ -77,8 +102,7 @@ end
 -- localization
 --os.setlocale(os.getenv("LANG"))
 
--- beautiful init
-beautiful.init(awful.util.getdir("config") .. "/themes/current/theme.lua")
+
 
 -- common
 modkey     = "Mod4"
@@ -88,11 +112,14 @@ editor     = os.getenv("EDITOR") or "vim" or "vi"
 editor_cmd = terminal .. " -e " .. editor
 
 -- user defined
-browser   = "firefox"
+browser    = "firefox"
 filemgr    = terminal .. " -e ranger "
 gui_editor = "gvim"
 graphics   = "gimp"
 musicplr   = terminal .. " -e ncmpcpp "
+mixer_term = terminal .. " -e alsamixer -c 0"
+mixer_gui  = "pavucontrol"
+python_iterperetor = terminal .. " -e ipython "
 
 local layouts = {
     awful.layout.suit.tile,
@@ -102,6 +129,54 @@ local layouts = {
     awful.layout.suit.spiral.dwindle,
     awful.layout.suit.floating,
 }
+-- }}}
+
+
+-- {{{ functions to help launch run commands in a terminal using ":" keyword
+-- {{{ functions to help launch run commands in a terminal using ":" keyword
+function check_for_terminal (command)
+   if command:sub(1,1) == ":" then
+      command = terminal .. ' -e "' .. command:sub(2) .. '"'
+   end
+   awful.util.spawn(command)
+end
+
+function clean_for_completion (command, cur_pos, ncomp, shell)
+   local term = false
+   if command:sub(1,1) == ":" then
+      term = true
+      command = command:sub(2)
+      cur_pos = cur_pos - 1
+   end
+   command, cur_pos =  awful.completion.shell(command, cur_pos,ncomp,shell)
+   if term == true then
+      command = ':' .. command
+      cur_pos = cur_pos + 1
+   end
+   return command, cur_pos
+end
+-- }}}
+function check_for_terminal (command)
+   if command:sub(1,1) == ":" then
+      command = terminal .. ' -e "' .. command:sub(2) .. '"'
+   end
+   awful.util.spawn(command)
+end
+
+function clean_for_completion (command, cur_pos, ncomp, shell)
+   local term = false
+   if command:sub(1,1) == ":" then
+      term = true
+      command = command:sub(2)
+      cur_pos = cur_pos - 1
+   end
+   command, cur_pos =  awful.completion.shell(command, cur_pos,ncomp,shell)
+   if term == true then
+      command = ':' .. command
+      cur_pos = cur_pos + 1
+   end
+   return command, cur_pos
+end
 -- }}}
 
 -- {{{ Conky
@@ -151,16 +226,28 @@ end
 
 -- {{{ Tags
 tags = {
-   names = { " 1 ",
-             " 2 ",
-             " 3 ",
-             " 4 ",
-             " 5 ",
-             " 6 ",
-             " 7 ",
-             " 8 ",
-             " 9 ",},
-   layout = { layouts[1], layouts[1], layouts[1], layouts[1], layouts[1], layouts[1], layouts[1], layouts[1], layouts[1] }
+  names = {
+    " 1 ",
+    " 2 ",
+    " 3 ",
+    " 4 ",
+    " 5 ",
+    " 6 ",
+    " 7 ",
+    " 8 ",
+    " 9 "
+  },
+  layout = {
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1],
+    layouts[1]
+  }
 }
 for s = 1, screen.count() do
    tags[s] = awful.tag(tags.names, s, tags.layout)
@@ -186,10 +273,13 @@ blue   = beautiful.highlight
 -- Menu icon
 awesome_icon = wibox.widget.imagebox()
 awesome_icon:set_image(beautiful.awesome_icon)
-awesome_icon:buttons(awful.util.table.join( awful.button({ }, 1, function() mymainmenu:toggle() end)))
+awesome_icon:buttons(
+    awful.util.table.join( awful.button(
+        { }, 1, function() mymainmenu:toggle() end)))
 
 -- Clock
-mytextclock = awful.widget.textclock(markup(beautiful.fg_normal, " " .. "%H:%M" .. " "), 2)
+mytextclock = awful.widget.textclock(
+    markup(beautiful.fg_normal, " %H:%M %a"), 2)
 clock_icon = wibox.widget.imagebox()
 clock_icon:set_image(beautiful.clock)
 clockwidget = wibox.widget.background()
@@ -197,13 +287,19 @@ clockwidget:set_widget(mytextclock)
 clockwidget:set_bgimage(beautiful.widget_bg)
 
 -- Calendar
-mytextcalendar = awful.widget.textclock(markup(beautiful.fg_normal, " " .. "%a %d %b<span> </span>"))
+mytextcalendar = awful.widget.textclock(
+    markup(beautiful.fg_normal, " %Y-%m-%d <span></span>"))
 calendar_icon = wibox.widget.imagebox()
 calendar_icon:set_image(beautiful.calendar)
 calendarwidget = wibox.widget.background()
 calendarwidget:set_widget(mytextcalendar)
 calendarwidget:set_bgimage(beautiful.widget_bg)
-lain.widgets.calendar:attach(calendarwidget, { fg = beautiful.fg_normal, position = "top_right" })
+lain.widgets.calendar:attach(
+    calendarwidget,
+        {fg = beautiful.fg_normal,
+         font = beautiful.font_no_size,
+         font_size = "10",
+         position = "top_right" })
 
 --[[ Mail IMAP check
 -- commented because it needs to be set before use
@@ -244,9 +340,10 @@ play_pause_icon:set_image(beautiful.play)
 mpdwidget = lain.widgets.mpd({
     settings = function ()
         if mpd_now.state == "play" then
-            mpd_now.artist = mpd_now.artist:upper():gsub("&.-;", string.lower)
-            mpd_now.title = mpd_now.title:upper():gsub("&.-;", string.lower)
-            widget:set_markup(" " .. mpd_now.artist .. " - " .. mpd_now.title)
+            --mpd_now.artist = mpd_now.artist:upper():gsub("&.-;", string.lower)
+            --mpd_now.title = mpd_now.title:upper():gsub("&.-;", string.lower)
+            widget:set_markup(
+                " " .. mpd_now.artist .. " - " .. mpd_now.title .. " ")
             play_pause_icon:set_image(beautiful.pause)
         elseif mpd_now.state == "pause" then
             widget:set_markup(" MPD PAUSED ")
@@ -255,100 +352,166 @@ mpdwidget = lain.widgets.mpd({
             widget:set_markup(" ")
             play_pause_icon:set_image(beautiful.play)
         end
+
+        mpd_notification_preset = {
+          title = "Now Playing:",
+          fg = beautiful.fg_normal,
+          bg = beautiful.bg_normal,
+          timeout = 6,
+          text = string.format("%s\n%s (%s)",
+              mpd_now.title, mpd_now.artist, mpd_now.album, mpd_now.date)
+        }
     end
 })
 
 musicwidget = wibox.widget.background()
 musicwidget:set_widget(mpdwidget)
 musicwidget:set_bgimage(beautiful.widget_bg)
-musicwidget:buttons(awful.util.table.join(awful.button({ }, 1,
-function () awful.util.spawn_with_shell(musicplr) end)))
-mpd_icon:buttons(awful.util.table.join(awful.button({ }, 1,
-function () awful.util.spawn_with_shell(musicplr) end)))
+musicwidget:buttons(
+  awful.util.table.join(
+    awful.button({ }, 1, function () awful.util.spawn_with_shell(musicplr) end)
+    )
+)
+mpd_icon:buttons(
+  awful.util.table.join(
+    awful.button({ }, 1, function () awful.util.spawn_with_shell(musicplr) end)
+  )
+)
 
--- Battery
-batwidget = lain.widgets.bat({
+-- CPU/Memory Usage
+cpuwidget = lain.widgets.cpu({
     settings = function()
-        bat_header = " Batt "
-        bat_p      = bat_now.perc .. "- "
-
-        if bat_now.status == "Charging" then
-            bat_header = " Line "
-            bat_p      = bat_now.perc .. "+ "
-        elseif bat_now.status == "Unknown" then
-          bat_header = " Line "
-          bat_p      = bat_now.perc .. "- "
-        end
-
-
-        widget:set_markup(markup(blue, bat_header) .. bat_p)
+        widget:set_markup(markup(beautiful.highlight, " CPU ") .. str_pad(cpu_now.usage, 3) .. "% ")
     end
 })
+cpu_widget = wibox.widget.background()
+cpu_widget:set_widget(cpuwidget)
+cpu_widget:set_bgimage(beautiful.widget_bg)
+cpu_icon = wibox.widget.imagebox()
+cpu_icon:set_image(beautiful.cpu)
 
---- Pads str to length len with char from right
-str_pad = function(str, len, char)
-  if char == nil then char = ' ' end
-  return str .. string.rep(char, len - #str)
-end
+memwidget = lain.widgets.mem({
+    settings = function()
+        widget:set_markup(markup(beautiful.highlight, " RAM ") .. string.format("%3i", 100 * mem_now.used / 7849.) .. "% ")
+    end
+})
+mem_widget = wibox.widget.background()
+mem_widget:set_widget(memwidget)
+mem_widget:set_bgimage(beautiful.widget_bg)
+mem_icon = wibox.widget.imagebox()
+mem_icon:set_image(beautiful.mem)
 
-volumewidget = lain.widgets.alsa({
+-- Battery
+batt_status = lain.widgets.bat({
+    settings = function()
+        bat_header = "Batt "
+        bat_value_color = beautiful.fg_normal
+        notify = "on"
+        if tonumber(bat_now.perc) <= 15 then
+          bat_value_color = beautiful.fg_urgent
+        elseif tonumber(bat_now.perc) <= 5 then
+          bat_value_color = beautiful.alarm
+        end
+        bat_p      = bat_now.perc .. "-"
+
+        if bat_now.status == "Charging" then
+            bat_header = "Line "
+            bat_p      = bat_now.perc .. "+"
+            notify = "off"
+        elseif bat_now.status == "Unknown" then
+          bat_header = "Line "
+          bat_p      = bat_now.perc .. "-"
+          notify = "off"
+        end
+
+        bat_notification_low_preset = {
+          title = "Low Battery Warning",
+          text = "Connect to external power soon.",
+          timeout = 5,
+          fg = beautiful.fg_normal,
+          bg = beautiful.fg_urgent
+        }
+        bat_notification_critical_preset = {
+          title = "Critical Battery Warning",
+          text = "Battery depleted; shutdown imminent!",
+          timeout = 15,
+          fg = beautiful.fg_normal,
+          bg = beautiful.alarm
+        }
+
+
+        widget:set_markup(
+            " " ..
+            markup(blue, bat_header) ..
+            markup(bat_value_color, bat_p) ..
+            " "
+        )
+    end
+})
+batt_widget = wibox.widget.background()
+batt_widget:set_widget(batt_status)
+batt_widget:set_bgimage(beautiful.widget_bg)
+
+
+sound_level_widget = lain.widgets.alsa({
     settings = function()
         header = " Vol "
         vlevel  = volume_now.level
         vol_color = beautiful.fg_normal
 
         if volume_now.status == "off" then
-            vlevel = str_pad(vlevel, 3) .. "M"
+            vlevel = "M" .. str_pad(vlevel, 3)
             vol_color = beautiful.dim
         else
-            vlevel = str_pad(vlevel, 3) .. " "
+            vlevel = " " .. str_pad(vlevel, 3)
         end
 
-        widget:set_markup(markup(beautiful.highlight, header) .. markup(vol_color, vlevel))
+        widget:set_markup(markup(beautiful.highlight, header) .. markup(vol_color, vlevel .. "%") .. " ")
     end
 })
+volumewidget = wibox.widget.background()
+volumewidget:set_widget(sound_level_widget)
+volumewidget:set_bgimage(beautiful.widget_bg)
 
+volumewidget:buttons(
+    awful.util.table.join(
+        awful.button({ }, 1, function () awful.util.spawn_with_shell(mixer_term) end),
+        awful.button({ }, 3, function () awful.util.spawn(mixer_gui) end)
+    )
+)
 
 -- Network Widgets
-wifi_widget = wibox.widget.textbox()
-wifi_widget:set_text(" Wifi")
-wired_widget = wibox.widget.textbox()
-wired_widget:set_text(" Wired")
-vpn_widget = wibox.widget.textbox()
-vpn_widget:set_text(" VPN")
+wifi_status = wibox.widget.textbox()
+wifi_status:set_text(" Wifi")
+wired_status = wibox.widget.textbox()
+wired_status:set_text(" Wired")
+vpn_status = wibox.widget.textbox()
+vpn_status:set_text(" VPN ")
 net_timer = timer({ timeout = 5 })
 net_timer:connect_signal("timeout",
     function()
-      wifi_widget:set_markup(markup(linkInfo("wlp3s0"), " Wifi"))
+      wifi_status:set_markup(markup(linkInfo("wlp3s0"), " Wifi"))
     end)
 net_timer:connect_signal("timeout",
     function()
-      wired_widget:set_markup(markup(linkInfo("enp0s25"), " Wired"))
+      wired_status:set_markup(markup(linkInfo("enp0s25"), " Wired"))
     end)
 net_timer:connect_signal("timeout",
     function()
-      vpn_widget:set_markup(markup(linkInfo("tun0"), " VPN"))
+      vpn_status:set_markup(markup(linkInfo("tun0"), " VPN "))
     end)
 net_timer:start()
 
---wifi_widget = lain.widgets.net({
---    iface = "wlp3s0",
---    timeout = 2,
---    settings = function()
---        if net_now.state == "up" then wifi_state = beautiful.highlight
---        else wifi_state = beautiful.dim end
---        widget:set_markup(markup(wifi_state, " Wifi"))
---    end
---})
---wired_widget = lain.widgets.net({
---    iface = "enp0s25",
---    timeout = 2,
---    settings = function()
---        if net_now.state == "up" then wired_state = beautiful.highlight
---        else wired_state = beautiful.dim end
---        widget:set_markup(markup(wired_state, " Wired"))
---    end
---})
+
+wifi_widget = wibox.widget.background()
+wifi_widget:set_widget(wifi_status)
+wifi_widget:set_bgimage(beautiful.widget_bg)
+wired_widget = wibox.widget.background()
+wired_widget:set_widget(wired_status)
+wired_widget:set_bgimage(beautiful.widget_bg)
+vpn_widget = wibox.widget.background()
+vpn_widget:set_widget(vpn_status)
+vpn_widget:set_bgimage(beautiful.widget_bg)
 
 -- Separators
 first = wibox.widget.textbox('<span> </span>')
@@ -366,7 +529,7 @@ spr_bottom_right = wibox.widget.imagebox()
 spr_bottom_right:set_image(beautiful.spr_bottom_right)
 spr_left = wibox.widget.imagebox()
 spr_left:set_image(beautiful.spr_left)
-bar = wibox.widget.textbox('<span> |</span>')
+bar = wibox.widget.textbox("<span font='Devavu Sans Mono 8'> </span>")
 bottom_bar = wibox.widget.imagebox()
 bottom_bar:set_image(beautiful.bottom_bar)
 
@@ -452,18 +615,22 @@ for s = 1, screen.count() do
     -- Widgets that are aligned to the upper right
     local right_layout = wibox.layout.fixed.horizontal()
     -- right_layout:add(mailwidget)
-    -- right_layout:add(cpu_icon)
-    -- right_layout:add(cpuwidget)
     right_layout:add(spr_right)
     right_layout:add(mpd_icon)
     right_layout:add(musicwidget)
+    right_layout:add(bar)
     right_layout:add(volumewidget)
+    right_layout:add(bar)
+    right_layout:add(cpu_widget)
+    right_layout:add(bar)
+    right_layout:add(mem_widget)
     right_layout:add(bar)
     right_layout:add(wifi_widget)
     right_layout:add(wired_widget)
     right_layout:add(vpn_widget)
     right_layout:add(bar)
-    right_layout:add(batwidget)
+    right_layout:add(batt_widget)
+    right_layout:add(bar)
     right_layout:add(calendar_icon)
     right_layout:add(calendarwidget)
     right_layout:add(clock_icon)
@@ -503,6 +670,18 @@ for s = 1, screen.count() do
     -- Create a borderbox above the bottomwibox
     lain.widgets.borderbox(mybottomwibox[s], s, { position = "top", color = "#0099CC" } )
 end
+-- }}}
+
+-- {{{ Title Bars
+
+-- mytitlebar = awful.titlebar({position = "top"})
+
+--mytitlebartitle = wibox.widget({type = "textbox", name = "mytitlebartitle" })
+--mytitlebar:widgets({ mytitlebartitle })
+
+-- c = client.focus
+-- c.titlebar = mytitlebar
+
 -- }}}
 
 -- {{{ Mouse bindings
@@ -635,42 +814,48 @@ globalkeys = awful.util.table.join(
     awful.key({ altkey,           }, "c",      function () lain.widgets.calendar:show(7) end),
     awful.key({ altkey,           }, "w",      function () yawn.show(7) end),
 
-    -- ALSA volume control
+    -- Battery Levels
+    -- TODO: NEEDS SUDO PROMPT
+    --awful.key({},"XF86Battery",
+    --    function ()
+    --        awful.util.spawn("set_battery_thresholds")
+    --    end),
+
     -- ALSA volume control
     awful.key({ altkey }, "Up",
         function ()
             awful.util.spawn("amixer -q set Master 1%+")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ }, "XF86AudioRaiseVolume",
         function ()
             awful.util.spawn("amixer -q set Master 4.0%+")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ altkey }, "Down",
         function ()
             awful.util.spawn("amixer -q set Master 1%-")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ }, "XF86AudioLowerVolume",
         function ()
             awful.util.spawn("amixer -q set Master 4.0%-")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ altkey }, "m",
         function ()
             awful.util.spawn("amixer -q set Master playback toggle")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ }, "XF86AudioMute",
         function ()
             awful.util.spawn("amixer -q set Master toggle")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
     awful.key({ altkey, "Control" }, "m",
         function ()
             awful.util.spawn("amixer -q set Master playback 100%")
-            volumewidget.update()
+            sound_level_widget.update()
         end),
 
     -- CDROM lock
@@ -706,24 +891,37 @@ globalkeys = awful.util.table.join(
         end),
 
     -- Copy to clipboard
-    awful.key({ modkey }, "c", function () os.execute("xsel -p -o | xsel -i -b") end),
+    awful.key({ modkey, "Control" }, "c", function () os.execute("xsel -p -o | xsel -i -b") end),
 
     -- User programs
     awful.key({ modkey, }, "b", function () awful.util.spawn(browser) end),
     awful.key({ modkey, }, "d", function () awful.util.spawn_with_shell(filemgr) end),
     awful.key({ modkey, }, "e", function () awful.util.spawn(gui_editor) end),
     awful.key({ modkey, "Control" }, "l", function () awful.util.spawn("sexlock") end),
+    awful.key({ modkey, }, "p", function () awful.util.spawn(python_iterperetor) end),
     --awful.key({ modkey, }, "g", function () awful.util.spawn(graphics) end),
+    awful.key({ modkey, }, "F2", function () awful.util.spawn_with_shell("eject -i on /dev/sr0") end),
+    awful.key({ modkey, "Shift" }, "F2", function () awful.util.spawn_with_shell("eject -i off /dev/sr0") end),
+
 
     -- Prompt
-    awful.key({ modkey }, "r", function () mypromptbox[mouse.screen]:run() end),
+    awful.key({ modkey }, "r",
+        function ()
+            awful.prompt.run({prompt = "Run "},
+              mypromptbox[mouse.screen].widget,
+              check_for_terminal,
+              clean_for_completion,
+              awful.util.getdir("cache") .. "/history")
+        end
+    ),
     awful.key({ modkey }, "x",
-              function ()
-                  awful.prompt.run({ prompt = "Run Lua code: " },
-                  mypromptbox[mouse.screen].widget,
-                  awful.util.eval, nil,
-                  awful.util.getdir("cache") .. "/history_eval")
-              end)
+      function ()
+          awful.prompt.run({ prompt = "Run Lua code: " },
+          mypromptbox[mouse.screen].widget,
+          awful.util.eval, nil,
+          awful.util.getdir("cache") .. "/history_eval")
+      end
+    )
 )
 
 clientkeys = awful.util.table.join(
