@@ -66,6 +66,7 @@ theme.cpu                           = theme.icon_dir .. "/cpu.png"
 theme.net_up                        = theme.icon_dir .. "/net_up.png"
 theme.net_down                      = theme.icon_dir .. "/net_down.png"
 theme.widget_mail_notify            = theme.icon_dir .. "/mail_notify.png"
+theme.gmail                         = theme.icon_dir .. "/gmail.png"
 
 theme.layout_tile                   = theme.icon_dir .. "/tile.png"
 theme.layout_tilegaps               = theme.icon_dir .. "/tilegaps.png"
